@@ -1,0 +1,198 @@
+<body>
+    <div id="container"></div>
+</body>
+<!-- constantes -->
+<script>
+    const A = "A";
+    const B = "B";
+    const C = "C";
+    const D = "D";
+    const E = "E";
+    const F = "F";
+    const G = "G";
+
+    const SEG = {
+        2048 :[A,B],
+        1024 :[B,C],
+        512  :[C,D],
+        256  :[D,E],
+        128  :[E,F],
+        64   :[F,A],
+        32   :[G,A],
+        16   :[G,B],
+        8    :[G,C],
+        4    :[G,D],
+        2    :[G,E],
+        1    :[G,F],
+    }
+
+</script>
+<!-- funções -->
+<script>
+    function gerarSubGrafos(tamanho){
+        const listaGrafo = []
+        const listaNumero = []
+
+        // gera as combinações de segmentos
+        let combinacoesPossiveis = combinacaoRecursiva([0,1,2,3,4,5,6,7,8,9,10,11], tamanho).map( x => {
+            const vetor = Array(12).fill(0);
+            x.forEach(pos => {
+                vetor[pos] = 1;
+            });
+            return vetor;
+        });
+
+        // adiciona na lista final somente aquelas que não são repetições rotacionadas
+        for (let subGrafo of combinacoesPossiveis){
+            // debugger
+            let novo = true;
+            let copy = [...subGrafo];
+            
+            for(let r = 0; r < 6; r++){                
+                let c0 = copy.slice(0,6);
+                let c1 = copy.slice(6,12);
+                let f0 = c0.shift();
+                let f1 = c1.shift();
+                copy = [...c0, f0,...c1, f1];
+
+                if (listaNumero.some( x => x == parseInt(copy.join(""),2)))
+                    novo = false;
+            }
+
+            if (novo) {
+                listaGrafo.push(subGrafo);
+                listaNumero.push(parseInt(subGrafo.join(""),2))
+            }
+        }
+
+        return listaGrafo;
+
+    }
+
+    function combinacaoRecursiva(universo, tamanho) {
+        const resultado = [];
+
+        function backtrack(combinacao, inicio) {
+            if (combinacao.length === tamanho) {
+                resultado.push([...combinacao]);
+                return;
+            }
+            for (let i = inicio; i < universo.length; i++) {
+                combinacao.push(universo[i]);
+                backtrack(combinacao, i + 1);
+                combinacao.pop();
+            }
+        }
+
+        backtrack([], 0);
+        return resultado;
+    }
+
+    function desenharCaminho(caminho) {
+        const size = 250;
+        const raio = 70;
+        const vertices = ['D', 'E', 'F', 'A', 'B', 'C'];
+        const angs = Array.from({length: 6}, (_, i) => 2 * Math.PI * i / 6);
+        const pos = {};
+        for (let i = 0; i < vertices.length; i++) {
+            pos[vertices[i]] = [
+                size/2 + raio * Math.cos(angs[i]),
+                size/2 + raio * Math.sin(angs[i])
+            ];
+        }
+        pos['G'] = [size/2, size/2];
+
+        // Cria canvas e contexto
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+
+        // Desenha vértices
+        for (const v in pos) {
+            const [x, y] = pos[v];
+            ctx.beginPath();
+            ctx.arc(x, y, 12, 0, 2 * Math.PI);
+            ctx.fillStyle = 'white';
+            ctx.fill();
+            ctx.strokeStyle = 'black';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.fillStyle = 'black';
+            ctx.font = 'bold 16px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(v, x, y);
+        }
+
+        // Desenha arestas do caminho
+        ctx.strokeStyle = '#e53935';
+        ctx.lineWidth = 4;
+        ctx.globalAlpha = 0.8;
+        for (let i = 0; i < caminho.length; i++) {
+            const [x0, y0] = pos[caminho[i][0]];
+            const [x1, y1] = pos[caminho[i][1]];
+            ctx.beginPath();
+            ctx.moveTo(x0, y0);
+            ctx.lineTo(x1, y1);
+            ctx.stroke();
+        }
+        ctx.globalAlpha = 1.0;
+
+        // Título
+        ctx.fillStyle = '#333';
+        ctx.font = 'bold 14px Arial';
+        ctx.fillText(`Caminho: ${caminho.map(x => x.join("")).join(',')}`, size/2, 20);
+
+        return canvas;
+    }
+        
+    function mostrarCaminhosNoGrid(caminhos) {
+        const container = document.getElementById('container');
+        container.style.display = 'grid';
+        container.style.gridTemplateColumns = 'repeat(5, 1fr)';
+        container.style.gap = '16px';
+
+        caminhos.forEach((caminho) => {
+            const div = document.createElement('div');
+            div.style.border = '1px solid #ccc';
+            div.style.padding = '8px';
+            div.style.background = '#fafafa';
+            div.style.display = 'flex';
+            div.style.flexDirection = 'column';
+            div.style.alignItems = 'center';
+            div.appendChild(desenharCaminho(caminho));
+            div.onclick = (e) => {
+                if (e.target.tagName === 'DIV') {
+                    e.target.style.display = e.target.style.display === 'none' ? 'block' : 'none';
+                }
+                e.target.style.display = 'none';
+            };
+        
+            container.appendChild(div);
+        });
+    }
+
+    function transduzirCaminhos(caminhos){
+        // debugger
+        return caminhos.map(x => {
+            let grafo = [];
+
+            x.reverse().map((y, n, arr) => {
+                if ((y * (2**(n))) > 0)
+                    grafo.push([...SEG[(y * (2**(n)))]])
+            })
+            return grafo;
+        });
+    }
+</script>
+<!-- excecução -->
+<script>
+    // debugger;
+    let params = new URLSearchParams(document.location.search);
+    let size = params.get("size"); // tamanho
+
+    let tamanho = size == null ? 1 : parseInt(size);
+    mostrarCaminhosNoGrid(transduzirCaminhos(gerarSubGrafos(tamanho)))
+
+</script>

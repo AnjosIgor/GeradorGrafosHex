@@ -93,7 +93,7 @@
         return resultado;
     }
 
-    function desenharCaminho(caminho) {
+    function desenharCaminho(caminho, context) {
         const vertices = ['D', 'E', 'F', 'A', 'B', 'C'];
         const angs = Array.from({length: 6}, (_, i) => 2 * Math.PI * i / 6);
         const pos = {};
@@ -190,15 +190,97 @@
         return canvas;
     }
         
-    function mostrarCaminhosNoGrid(caminhos) {
-        const container = document.getElementById('container');
-        container.style.display = 'grid';
-        // container.style.gridTemplateColumns = `repeat(${Math.floor(document.documentElement.clientWidth / size)},1fr)`;// 'repeat(5, 1fr)';
-        container.style.gridTemplateColumns = `repeat(12,1fr)`;// 'repeat(5, 1fr)';
-        // container.style.gap = '16px';
-        // container.style.width = 18*9 + 'px';
+    function desenharCaminhos(caminhos, ctx) {
+        const vertices = ['D', 'E', 'F', 'A', 'B', 'C'];
+        const angs = Array.from({length: 6}, (_, i) => 2 * Math.PI * i / 6);
 
-        caminhos.forEach((caminho) => {
+        let [x, y] = [0, 0];
+        for (let c = 0; c < caminhos.length; c++) {
+            const caminho = caminhos[c];
+            const centro = [raio + x*2*raio + (y%2)*(raio), raio + y*raio*Math.tan(Math.PI/3)];
+            const pos = {};
+            const pos2 = {};
+            // debugger;
+            const col = 12;
+            [x,y] = [(x + 1)%(col - y%2), y + Math.floor((x + 1)/(col- y%2))];
+            // i = i + Math.floor((j + 1)/(9 - i%2));
+            // j = (j + 1)%(9 - i%2);
+            
+            //posições
+            for (let i = 0; i < vertices.length; i++) {
+                pos[vertices[i]] = [
+                    centro[0] + raio * Math.cos(angs[i]),
+                    centro[1] + raio * Math.sin(angs[i])
+                ];
+            }
+            for (let i = 0; i < vertices.length; i++) {
+                pos2[vertices[i]] = [
+                    centro[0] + corda * Math.cos(angs[i]),
+                    centro[1] + corda * Math.sin(angs[i])
+                ];
+            }
+            pos['G'] = centro; //[size/2, size/2];
+            
+            // Desenha fundo
+            ctx.strokeStyle = '#eaeaea';
+            ctx.lineWidth = 4;
+            ctx.globalAlpha = 0.9;
+            for (let k in SEG) {
+                let f = SEG[k];
+                let x0, y0;
+                let x1, y1;
+                if (f.join("").includes("G")){                    
+                    [x0, y0] = pos[f[0]];
+                    [x1, y1] = pos[f[1]];
+                }
+                else{
+                    [x0, y0] = pos2[f[0]];
+                    [x1, y1] = pos2[f[1]];
+                }
+                ctx.beginPath();
+                ctx.moveTo(x0, y0);
+                ctx.lineTo(x1, y1);
+                ctx.stroke();
+            }
+            
+            // Desenha arestas do caminho
+            ctx.strokeStyle = '#2089df';
+            ctx.lineWidth = 4;
+            ctx.globalAlpha = 0.50;
+            for (let i = 0; i < caminho.length; i++) {
+                let x0, y0;
+                let x1, y1;
+                if (caminho[i].join("").includes("G")){
+                    [x0, y0] = pos[caminho[i][0]];
+                    [x1, y1] = pos[caminho[i][1]];
+                }
+                else{
+                    [x0, y0] = pos2[caminho[i][0]];
+                    [x1, y1] = pos2[caminho[i][1]];
+                }
+                ctx.beginPath();
+                ctx.moveTo(x0, y0);
+                ctx.lineTo(x1, y1);
+                ctx.stroke();
+            }
+
+
+            ctx.globalAlpha = 1.0;
+
+
+            // i = i + Math.floor((j + 1)/(9 - i%2));
+            // j = (j + 1)%(9 - i%2);
+        }
+        
+        // return canvas;
+    }
+        
+    function mostrarCaminhosNoGrid(caminhos, tamanho) {
+        const container = document.getElementById('container');        
+
+        caminhos.sort(() => Math.random() - 0.5);;
+
+        for (let n = 0; n < tamanho; n++) {
             const div = document.createElement('div');
             // div.style.border = '1px solid #ccc';
             // div.style.padding = '8px';
@@ -206,16 +288,20 @@
             div.style.display = 'flex';
             div.style.flexDirection = 'column';
             div.style.alignItems = 'center';
-            div.appendChild(desenharCaminho(caminho));
-            div.onclick = (e) => {
-                if (e.target.tagName === 'DIV') {
-                    e.target.style.display = e.target.style.display === 'none' ? 'block' : 'none';
-                }
-                e.target.style.display = 'none';
-            };
+            
+            // Cria canvas e contexto
+            const canvas = document.createElement('canvas');
+            canvas.width = 1200;
+            canvas.height = 190*Math.floor(letras/23);
+            const ctx = canvas.getContext('2d');
+
+            div.appendChild(canvas);
+            desenharCaminhos(caminhos.slice(letras * n, letras * (n+1)), ctx)
         
             container.appendChild(div);
-        });
+        }
+        
+        
     }
 
     function transduzirCaminhos(caminhos){
@@ -235,16 +321,17 @@
 <script>
     // debugger;
     let params = new URLSearchParams(document.location.search);
-    let tracos = params.get("size"); // tamanho
+    let frases = params.get("size"); // tamanho
+    let qtd = params.get("hexes"); // tamanho
 
-    let tamanho = size == null ? 1 : parseInt(tracos);
+    let tamanho = frases == null ? 3 : parseInt(frases);
+    let letras = qtd == null ? 23: parseInt(qtd) * 23;
     let listaGrafos = []
-    if (tracos == null)
-        for (let t = 1; t <= 12; t++) {
-            listaGrafos = listaGrafos.concat(gerarSubGrafos(t));
-        } 
-    else
-        listaGrafos = gerarSubGrafos(tamanho);
-    mostrarCaminhosNoGrid(transduzirCaminhos(listaGrafos))
+    for (let t = 1; t <= 12; t++) {
+        listaGrafos = listaGrafos.concat(gerarSubGrafos(t));
+    } 
+
+    // debugger;
+    mostrarCaminhosNoGrid(transduzirCaminhos(listaGrafos), tamanho, letras)
 
 </script>
